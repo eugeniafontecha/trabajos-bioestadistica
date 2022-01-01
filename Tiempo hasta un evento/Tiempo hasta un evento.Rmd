@@ -1,0 +1,116 @@
+---
+title: "Fontecha - TP 8 Tiempo hasta un evento"
+author: "María Eugenia Fontecha"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+path = 'C:/Users/meuge/Documents/R/TP8'
+```
+
+```{r include = FALSE}
+setwd(path)
+```
+
+**El archivo “Dieta de ratas.xls” contiene el tiempo libre de tumor (en días) de 90 ratas con 3 dietas diferentes. Se dividieron a 90 ratas de laboratorio en tres grupos que fueron alimentadas con dietas “low-fat”, “saturated” y “unsaturated” respectivamente. Las ratas tenían la misma edad y eran de la misma especie y eran similares en cuanto a su condición física. Se inyectó una idéntica cantidad de células tumorales en la pata de cada rata. Las ratas se observaron por 200 días. Muchas desarrollaron tumores reconocibles tempranamente en el estudio, algunas no desarrollaron tumor al término del estudio. La rata 16 del grupo 1 y la 24 del tercero se murieron accidentalmente luego de 140 y 170 días respectivamente, sin evidencia de tumor. La tabla indica para cada rata en cada dieta, el tiempo libre de tumor en días: el tiempo desde la inyección hasta el tiempo en el que el tumor se desarrolla o el fin del estudio. Todas las ratas del grupo “unsaturated” desarrollaron el tumor antes de los 200 días.**
+
+```{r include = FALSE}
+library(xlsx)
+```
+
+```{r}
+dieta <- read.xlsx('Dieta de ratas.xls', 'Hoja1', header=TRUE)
+summary(dieta)
+```
+
+```{r}
+dieta$Group <- as.factor(dieta$Group)
+str(dieta$Group)
+```
+
+1. **¿Qué tipo de censura presentan los datos?**
+
+Hay dos tipos de censura:
+
+* por un lado, para algunas ratas el tiempo hasta el suceso del evento fue más largo que el período de seguimiento de 200 días, por lo que no presentaron el evento durante el seguimiento. Esto es una censura por derecha;
+
+* por otro lado, dos ratas murieron accidentalmente antes de desarrollar del tumor y antes de finalizar el período de seguimiento.
+
+2. **Graficar las curvas de supervivencia para los tres grupos, estimadas por Kaplan Meier ¿Cuál es el estimador de la mediana del tiempo de supervivencia y su IC al 95% para cada uno de los grupos?**
+
+```{r include = F}
+library(survival)
+library(survminer)
+```
+
+
+```{r}
+#modelo
+fit<-survfit(Surv(time,Censored) ~ Group ,data = dieta)
+#plot
+ggsurvplot(fit, data=dieta,pval=TRUE,conf.int = TRUE,pval.method = TRUE )
+
+```
+
+Podemos ver que las curvas de sobrevida de los tres grupos no son iguales para todos los tiempos tanto gráficamente como con el test Log-rank. En el gráfico podemos ver que para un tiempo un poco menor a los 100 días las curvas de sobrevida comienzan a separarse. Por otro lado, el p-valor del Log-rank test dio mucho menor a 0.05, por lo que se rechaza la hipótesis nula que dice que las curvas son iguales para todo t.
+
+```{r}
+fit
+```
+* Para el grupo "Lowfat" el estimador de la mediana de la sobrevida es de 191 días, con un intervalo de confianza del 95% que va de 140 días hasta infinito. El hecho de que el intervalo de confianza vaya hasta infinito tiene que ver con los datos censurados. 
+
+```{r}
+dieta$Censored <- as.factor(dieta$Censored)
+summary(dieta$Censored[dieta$Group == 'Lowfat'])
+```
+Podemos ver que la mitad de los datos del grupo de Lowfat son censurados. De estos 15 datos censurados, 14 no llegaron a desarrollar el tumor en los 200 días de seguimiento y 1 murió accidentalmente.
+
+* En el grupo "Saturated" el estimador de la mediana de la sobrevida es de 108.5 días, con un intervalo de confianza del 95% entre 89 días y 142 días.
+
+* El grupo "Unsaturated" tiene una mediana de sobrevida de 92.5 días, con un intervalo de confianza del 95% entre 77 días y 112 días.
+
+3. **¿Cuánto vale la probabilidad estimada de supervivencia a 100 días para cada uno de los grupos? Mostrar los IC al 95%**
+
+```{r}
+summary(fit, times=c(100))
+```
+* La probabilidad estimada de supervivencia a 100 días para el grupo "Lowfat" es 0.7, con un intervalo de confianza del 95% entre 0.5538 y 0.8848.
+
+* La probabilidad estimada de supervivencia a 100 días para el grupo "Saturated" es 0.5667, con un intervalo de confianza del 95% entre 0.4144 y 0.7749.
+
+* La probabilidad estimada de supervivencia a 100 días para el grupo "Unsaturated" es 0.4333, con un intervalo de confianza del 95% entre 0.2878 y 0.6524.
+
+Podemos ver que si bien la probabilidad de supervivencia es diferente para cada grupo, los tres intervalos de confianza se solapan. Por lo tanto, para el día 100 la probabilidad de supervivencia no es significativamente diferente entre los tres grupos.
+
+4. **¿Los coeficientes entre las funciones de riesgo de los distintos pares de grupos son aproximadamente constantes a través del tiempo?**
+
+```{r}
+ggsurvplot(fit, data = dieta, fun = "cumhaz")
+```
+
+Se puede decir que los coeficientes entre las funciones de riesgo tomando los distintos grupos de a pares se mantienen más o menos constantes a lo largo del tiempo ya que vemos que el compartamiento de las tres curvas es más o menos similar. Es decir, que las tres curvas tienen aproximadamente la misma la tasa de crecimiento, más allá de que el grupo "Insaturated" presente el mayor riesgo y que el grupo "Lowfat" presente el menor riesgo.
+
+5. **Realice el modelo de Cox multivariado y analice sus coeficientes. ¿Qué conclusiones puede sacar?**
+
+
+```{r}
+dieta$Censored <- as.numeric(dieta$Censored)
+cox<-coxph(Surv(time,Censored) ~ Group ,data = dieta)
+summary(cox)
+```
+El test realizado toma como estado basal, o de comparación, al grupo "Lowfat", por lo que el modelo teórico es:
+
+$h(t) = h_0(t)e^{\beta_{saturated}x_{saturated}}e^{\beta_{unsaturated}x_{unsaturated}}$,
+
+donde $e^{\beta_{saturated}}$ es el hazard ratio de "Saturated" vs "Lowfat" y $e^{\beta_{unsaturated}}$ es el hazard ratio de "Unsaturated" vs "Lowfat". Además, $h_0$ representa el riesgo basal.
+
+* Mantener una dieta "saturated" aumenta 2.193 veces más el riesgo de desarrollar un tumor que si se mantiene una dieta "lowfat", con un intervalo de confianza del 95% entre 1.137 y 4.232. Esta asociación resulta significativa, con un p-valor menor a 0.05.
+
+* Mantener una dieta "unsaturated" aumenta en un 317.3% el riesgo de desarrollar un tumor si se comapara con una dieta "lowfat", con un intervalo de confianza del 95% entre 117.8% y 699.5% Esta asociación resulta significativa, con un p-valor menor a 0.05.
+
+Por lo tanto, las dietas "Saturated" y "Unsaturated" son factores de riesgo para el desarrollo de tumor.
