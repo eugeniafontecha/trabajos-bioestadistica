@@ -1,0 +1,783 @@
+---
+title: "Parcial de Bioestadística"
+author: "María Eugenia Fontecha"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+path = 'C:/Users/meuge/Documents/R/Parcial'
+setwd(path)
+```
+
+**La infección por el virus del dengue resulta ser sistémica y comportarse en forma dinámica, pasando por la aparición de cuadros clínicos asintomáticos o formas sintomáticas con distintos espectros de gravedad. Las guías de atención para pacientes con dengue en la región de las Américas (OPS 2010) recomiendan abundante hidratación para aquellos pacientes que puedan ser tratados en su hogar. Sin embargo, algunos hallazgos clínicos en Argentina sugieren que los pacientes con dengue podrían presentar niveles de sodio plasmático por debajo de los valores normales (hiponatremia), lo que indicaría una estrategia de hidratación inicial distinta a la habitualmente sugerida. Se diseñó un estudio con el objetivo de determinar la prevalencia de hiponatremia al momento de la primera consulta en pacientes atendidos en un hospital general con infección por el virus del dengue y los factores de riesgo asociados a dicho evento. Participaron 150 pacientes con diagnóstico de dengue confirmado por serología o PCR, mayores a 15 años. Fueron excluidos los pacientes con insuficiencia renal crónica estadio V en tratamiento sustitutivo de la función renal. Los pacientes fueron reclutados enero del 2016 y abril del 2016 en el Hospital Posadas. En cada paciente se determinó el sodio, potasio y cloro plasmático (mEq/L), creatinina plasmática (mg/dl), urea (g/L), edad y género. La hiponatremia fue definida como una concentración sérica de sodio <=135 mEq/L. En los pacientes con hiperglucemia (glucemia >110 mg/dl) se corrigió el valor de sodio plasmático (sodio corregido = sodio sin corregir + glucemia/36. Los datos se encuentran en el archivo *base.csv*.**
+
+```{r include = FALSE}
+library(xlsx)
+```
+
+```{r}
+dengue <- read.xlsx('base.xls', 'final', header=TRUE)
+```
+
+1. **¿A qué tipo de diseño experimental cree que corresponde el trabajo planteado?**
+
+El trabajo planteado corresponde a un estudio de corte transversal, ya que todos los datos de un individuo son tomados en el mismo momento, y no hay un seguimiento de los individuos en el tiempo. Tampoco hay un intervención ni una comparación entre casos y controles. Además, el objetivo de este trabajo es medir la prevalencia de la hiponatremia en casos de infección por el virus del dengue, y los estudios de corte transversal son los que se utilizan para esto.
+
+2. **Defina la pregunta (PICO) de la investigación.**
+
+* **P**: 150 pacientes del Hospital Posadas reclutados entre enero y abril de 2016 con diagnóstico de dengue confirmado por serología o PCR, mayores a 15 años, que no presentaban insuficiencia renal crónica estadio V con tratamiento sustitutivo de la función renal.
+
+* **I**: no hay una intervención, ya que se trata de un estudio de corte transversal, donde solamente se toman medidas.
+
+* **C**: se compara el género, la edad, el potasio plasmático, el cloro plasmático, la creatinina plasmática, la urea y la hiperglucemia.
+
+* **O**: si se padece de hiponatremia o no.
+
+3. **¿Qué tipo de sesgos le parece que puede presentar el diseño experimental?**
+
+* **Sesgo de selección**: ya que todos los individuos fueron tomados del mismo hospital.
+
+* **Sesgo de información**: 
+* * no se tiene en consideración otras posibles causas de la hiponatremia, como la dieta de los individuos, medicamentos, consumo diario de agua, entre otras. 
+* * no se indica el estadío de la infección de cada paciente ni la gravedad
+* * tampoco se indica el serotipo de dengue, ni si se trata de una primera infección o no.
+
+4. **Identifique las variables y clasifíquelas según rol (respuesta o explicatoria), tipo, unidad y distribución de probabilidades. Plantee qué test utilizaría para realizar la comparación entre los grupos. (Justifique sus respuestas)**
+
+```{r}
+summary(dengue)
+```
+Acondicionamiento de los datos.
+
+```{r}
+dengue$genero <- as.factor(dengue$genero)
+dengue$hiponatremia[dengue$sodio <= 135] <- 1
+dengue$hiponatremia[dengue$sodio > 135] <- 0
+dengue$hiponatremia <- as.factor(dengue$hiponatremia)
+dengue$hiperglucemia[is.na(dengue$hiperglucemia)] <- 0
+dengue$hiperglucemia[dengue$hiperglucemia > 0] <- 1
+dengue$hiperglucemia <- as.factor(dengue$hiperglucemia)
+```
+
+Separo los datos en dos grupos:
+
+* Grupo 1: hiponatremia
+
+* Grupo 0: normonatremia
+
+```{r}
+dengue1 <- dengue[dengue$hiponatremia == 1,]
+dengue0 <- dengue[dengue$hiponatremia == 0,]
+```
+
+
+```{r include = FALSE}
+library(knitr)
+library(kableExtra)
+library(magrittr)
+```
+
+### Variables cuantitativas
+
+Evalúo normalidad de las variables numéricas.
+
+
+```{r include = FALSE}
+library(nortest)
+library(ggpubr)
+library(ggplot2)
+``` 
+
+* Edad
+
+* * Grupo 1
+
+```{r fig.height=3.5, fig.width=4}
+x = dengue1$edad
+print(shapiro.test(x))
+print(lillie.test(x))
+
+ggqqplot(x)
+hist(x, freq =FALSE)
+curve( dnorm(x,mean(x),sd(x)),  min(x), max(x), add= T, col = 'red')
+```
+
+En el histograma se puede ver que la variable Edad para el grupo 1 no presenta una distribución normal, ya que no tiene la forma acampanada característica. También podemos ver en el QQ-Plot que hay algunos datos que se apartan de la línea de tendencia esperada para una distribución normal, especialmente en los extremos. Además, ambos tests estadísticos arrojaron un p-valor menor a 0.05, por lo que la hipótesis nula de que la variable tiene distribución normal se rechaza. Por ende, la edad no tiene distribución normal para el grupo 1.
+
+* * Grupo 0
+
+```{r fig.height=3.5, fig.width=4}
+x = dengue0$edad
+print(shapiro.test(x))
+print(lillie.test(x))
+
+ggqqplot(x)
+hist(x, freq =FALSE)
+curve( dnorm(x,mean(x),sd(x)),  min(x), max(x), add= T, col = 'red')
+```
+
+Para el grupo 0 podemos ver que el histograma tampoco tiene una distribución que se asemeje a la de la normal. El QQ-Plot muestra algunos datos que no siguen la tendencia esperada para una distribución normal. Por otro lado, en los tests estadísticos de Lilliefors y Shapiro-Wilk se rechaza la hipótesis nula de que los datos tienen distribución normal, ya que el p-valor en ambos casos fue menor a 0.05. En conclusión, la edad tampoco tiene distribución normal para el grupo 0.
+
+
+* Potasio
+
+* * Grupo 1
+
+```{r fig.height=3.5, fig.width=4}
+x = dengue1$potasio
+print(shapiro.test(x))
+print(lillie.test(x))
+
+ggqqplot(x)
+hist(x, freq =FALSE, breaks = 12)
+curve( dnorm(x,mean(x),sd(x)),  min(x), max(x), add= T, col = 'red')
+```
+
+Los métodos gráficos no muestran normalidad para la variable potasio del grupo 1; por un lado en el QQ-Plot se puede ver que algunos datos están escalonados y que otros se alejan de la recta de tendencia teórica, y por el otro el histograma presenta una forma que no se asimila tanto a la distribución normal. El test de Lilliefors dio un p-valor menor a 0.05, por lo que se rechaza la hipótesis nula, mientras que el test de Shapiro-Wilk dio un p-valor mayor a 0.05, por lo que la hipótesis nula no se rechaza. Como de los 4 métodos, 3 no indicarían normalidad, concluyo que la variable potasio no es normal para el grupo 1.
+
+
+```{r fig.height=3.5, fig.width=4}
+x = dengue0$potasio
+print(shapiro.test(x))
+print(lillie.test(x))
+
+ggqqplot(x)
+hist(x, freq =FALSE, breaks = 10)
+curve( dnorm(x,mean(x),sd(x)),  min(x), max(x), add= T, col = 'red')
+```
+
+Para el grupo 0, el QQ-Plot dio similar al grupo 1, en el sentido de que se ve cierto escalonamiento y que hay datos que se apartan de la recta de normalidad. Además, el histograma tampoco muestra una distribución normal. Por otro lado, a partir de los dos test estadísticos también se llega a la conclusión de que el potasio no tiene distribución normal para este grupo, ya que los p-valores dieron menores a 0.05. Por lo tanto, el potasio no tiene distribución normal.
+
+* Cloro
+
+* * Grupo 1
+
+```{r fig.height=3.5, fig.width=4}
+x = dengue1$cloro
+print(shapiro.test(x))
+print(lillie.test(x))
+
+ggqqplot(x)
+hist(x, freq =FALSE, breaks = 9)
+curve( dnorm(x,mean(x),sd(x)),  min(x), max(x), add= T, col = 'red')
+```
+
+Tanto el histograma como el QQ-Plot muestran que en los datos centrales hay cierta tendencia normal, mientras que en los extremos se observa un desvío de esta tendencia. Además, ambos tests estadísticos dieron un p-valor menor a 0.05, por lo que se rechaza la hipótesis nula. Entonces, la variable cloro para el grupo de hiponatremia no tiene distribución normal.
+
+* * Grupo 0 
+
+```{r fig.height=3.5, fig.width=4}
+x = dengue0$cloro
+print(shapiro.test(x))
+print(lillie.test(x))
+
+ggqqplot(x)
+hist(x, freq =FALSE, breaks = 9)
+curve( dnorm(x,mean(x),sd(x)),  min(x), max(x), add= T, col = 'red')
+```
+
+Tanto el test de Shapiro-Wilk como el de Lilliefors dieron un p-valor mayor a 0.05, por lo que no se rechaza la hipótesis nula de distribución normal de la variable. A su vez, el QQ-Plot también muestra esto, ya que todos los datos caen cerca de la línea de tendencia normal. El histograma no muestra una distribución tan concluyente como los demás métodos, ya que si bien se observa cierta forma acampanada, esta no se parece tanto a la de la distribución normal. De todas formas, concluyo que para el grupo 0 el cloro tiene distribución normal debido a los resultados de los demás métodos. 
+
+* Creatinina
+
+* * Grupo 1
+
+```{r fig.height=3.5, fig.width=4}
+x = dengue1$creatinina
+print(shapiro.test(x))
+print(lillie.test(x))
+
+ggqqplot(x)
+hist(x, freq =FALSE)
+curve( dnorm(x,mean(x),sd(x)),  min(x), max(x), add= T, col = 'red')
+```
+
+El histograma para la variable creatinina del grupo 1 muestra una forma acampanada pero que no es simétrica, ya que la cola derecha se ve que es más larga que la izquierda, lo cual se ve como un desplazamiento hacia la izquierda. El otro método gráfico, el QQ-Plot, muestra que hay algunos datos que se alejan de la recta de normalidad, y hay otros que tienen una distribución escalonada. Además, ambos tests estadísticos dieron un p-valor menor a 0.05, por lo que se rechaza la hipótesis nula. Entonces, la creatinina para el grupo 1 no tiene distribución normal.
+
+
+* * Grupo 0
+
+```{r fig.height=3.5, fig.width=4}
+x = na.omit(dengue0$creatinina)
+print(shapiro.test(x))
+print(lillie.test(x))
+
+ggqqplot(x)
+hist(x, freq =FALSE)
+curve( dnorm(x,mean(x),sd(x)),  min(x), max(x), add= T, col = 'red')
+```
+
+La creatinina para el grupo 0 no tiene distribución normal. Tanto el QQ-Plot como el histograma muestran que los datos no tienen una distribución normal ya que no presentan el comportamiento esperado. Además, los dos métodos estadísticos dieron un p-valor mucho menor a 0.05, por lo que se rechaza la hipótesis nula. En este grupo se puede observar un outlier, ya que hay un dato que difiere mucho de los demás, y además hay un dato NA.
+
+* Urea
+
+* * Grupo 1
+
+```{r fig.height=3.5, fig.width=4}
+x = dengue1$urea
+print(shapiro.test(x))
+print(lillie.test(x))
+
+ggqqplot(x)
+hist(x, freq =FALSE)
+curve( dnorm(x,mean(x),sd(x)),  min(x), max(x), add= T, col = 'red')
+```
+
+En el histograma de la urea del grupo 1 no se observa la campana de Gauss y en el QQ-Plot hay varios puntos que se alejan mucho de la línea de tendencia de normalidad, en particular para los valores más altos. Por otro lado ambos p-valores de los tests estadísticos dieron mucho más chicos que 0.05, por lo que se rechaza la hipótesis nula de normalidad de la variable. Por lo tanto, la urea no tiene distribución normal para el grupo 1.
+
+* * Grupo 0
+
+```{r fig.height=3.5, fig.width=4}
+x = dengue0$urea
+print(shapiro.test(x))
+print(lillie.test(x))
+
+ggqqplot(x)
+hist(x, freq =FALSE)
+curve( dnorm(x,mean(x),sd(x)),  min(x), max(x), add= T, col = 'red')
+```
+
+Para el grupo 0, el QQ-Plot de la urea muestra que la mayoría de los datos siguen la línea de tendencia, aunque hay algunos que se alejan. El histograma no muestra la forma acampanada característica de la distribución normal. Por último, tanto el test de Lilliefors como el de Shapiro-Wilk dieron un p-valor menor a 0.05, rechazando entonces la hipótesis nula. Por ende, la urea tampoco tiene distribución normal para el grupo 0.
+
+
+### Variables dicotómicas
+
+Las variables dicotómicas tienen distribución binomial.
+
+### Tabla de resumen de las variables
+
+```{r}
+tabla <- data.frame(Variables = c('Hiponatremia','Edad', 'Género', 'Potasio','Cloro','Urea',
+                                  'Creatinina','Hiperglucemia','Edad', 'Género',
+                                  'Potasio','Cloro','Urea','Creatinina','Hiperglucemia'),
+                    
+                    Rol = c('Respuesta','Explicativa','Explicativa','Explicativa',
+                            'Explicativa',
+                            'Explicativa','Explicativa','Explicativa','Explicativa',
+                            'Explicativa','Explicativa','Explicativa',
+                            'Explicativa','Explicativa','Explicativa'),
+                    Tipo = c('Categórica Dicotómica','Cuantitativa Continua',
+                             'Categórica Dicotómica','Cuantitativa Continua',
+                             'Cuantitativa Continua','Cuantitativa Continua',
+                             'Cuantitativa Continua','Categórica Dicotómica',
+                             'Cuantitativa Continua','Categórica Dicotómica',
+                             'Cuantitativa Continua',
+                             'Cuantitativa Continua','Cuantitativa Continua',
+                             'Cuantitativa Continua', 'Categórica Dicotómica'),
+                    Unidad = c('-','Años','-','mEq/L','mEq/L','g/L','mg/dl','-',
+                               'Años','-','mEq/L','mEq/L','g/L','mg/dl','-'),
+                    Distribución = c('Binomial','No normal','Binomial','No normal',
+                                     'No Normal','No normal','No normal','Binomial',
+                                     'No normal','Binomial','No normal','Normal',
+                                     'No normal','No normal','Binomial'))
+
+kable(tabla, booktabs = T) %>%
+  kable_styling(latex_options = 'hold_position')%>%
+  group_rows("Grupo 1", 2, 8) %>%
+  group_rows("Grupo 0", 9, 15)
+```
+
+### Tests para realizar la comparación entre los grupos
+
+A partir de los resultados anteriores, puedo definir qué test utilizaría para realizar la comparación entre los grupos. 
+
+* Para las variables dicotómicas se debe utilizar el test de Chi Cuadrado si más del 80% de las celdas de la tabla de contigencia tienen una frecuencia esperada mayor o igual a 5, y ninguna menor a 1, y el test exacto de Fisher cuando no se cumple esto.
+
+* Para las variables cuantitativas se debe utilizar el test Z si estas tienen distribución normal y si se tiene una cantidad de individuos mayor a 30, el test T si las variables tienen distribución normal y la muestra es menor a 30, o el test de Wilcoxon-Mann-Whitney si no se cumple normalidad.
+
+Genero la tabla de contingencia para la variable \texttt{genero}.
+
+```{r}
+t_genero <- table(dengue$genero, dengue$hiponatremia)
+t_genero = t_genero[rev(order(rownames(t_genero))) , 
+                              rev(order(colnames(t_genero)))]
+kable(t_genero, booktabs = T) %>%
+kable_styling(latex_options = "striped")
+```
+
+Como todas las frecuencias son mayores a 5 puedo utilizar el test de Chi cuadrado.
+
+Genero la tabla de contingencia para la variable \texttt{hiperglucemia}.
+
+```{r}
+t_hglucemia <- table(dengue$hiperglucemia, dengue$hiponatremia)
+t_hglucemia = t_hglucemia[rev(order(rownames(t_hglucemia))) , 
+                              rev(order(colnames(t_hglucemia)))]
+kable(t_hglucemia, booktabs = T) %>%
+kable_styling(latex_options = "striped")
+```
+Para la variable \texttt{hiperglucemia} no se cumple que el 80% de las celdas tengan frecuencia mayor a 5, por lo que tengo que realizar el test exacto de Fisher.
+
+En cuanto a las variables cuantitativas, \texttt{edad}, \texttt{potasio}, \texttt{urea} y \texttt{creatinina} tienen distribución no normal, por lo que se debe utilizar el text de Wilcoxon. La variable \texttt{cloro} dio no normal para un grupo y normal para el otro, por lo que también utilizo el test de Wilcoxon.
+
+En resumen:
+
+```{r}
+tabla_test <- data.frame(Variables = c('Edad', 'Género', 'Potasio','Cloro','Urea',
+                                       'Creatinina','Hiperglucemia'),
+                    
+                    Test = c('Wilcoxon','Chi cuadrado','Wilcoxon','Wilcoxon','Wilcoxon',
+                             'Wilcoxon','Fisher exacto'))
+kable(tabla_test, booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+
+5. **Analice en forma univariada las diferencias entre ambos grupos (Hiponatremia, normonatremia) con respecto a sexo, edad, urea, creatinina, cloro, potasio e hiperglucemia.**
+
+## Sexo
+
+**Test de Chi Cuadrado**
+
+Las hipótesis del test de Chi Cuadrado son:
+
+$H_0$: el sexo y la hiponatremia son variables independientes
+
+$H_1$: el sexo y la hiponatremia no son variables independientes.
+
+```{r}
+chisq.test(t_genero)
+```
+
+El p-valor del test de Chi cuadrado dio mayor a 0.05, por lo que no se rechaza la hipótesis nula. Entonces, el sexo y la hiponatremia en los casos de infección por dengue son variables independientes y no hay una asociación estadísticamente significativa.
+
+```{r fig.height= 4, fig.width=6}
+mosaicplot(t_genero, main = 'Género vs Hiponatremia', xlab = 'Género'
+           , ylab = 'Hiponatremia', color = c('grey', 'salmon'))
+```
+
+En el gráfico de mosaicos podemos ver que las proporciones de individuos con hiponatremia son muy similares entre el grupo de hombres y el grupo de mujeres.
+
+## Edad
+
+**Test de Wilcoxon**
+
+Las hipótesis del test de Wilcoxon son:
+
+* $H_0$: $\theta_{1} - \theta_{0} = 0$
+
+* $H_1$: $\theta_{1} - \theta_{0} \neq 0$,
+
+donde $\theta_{1}$ y $\theta_{0}$ son las medianas de la edad del grupo 1 (hiponatremia) y del grupo 0 (normonatremia), respectivamente.
+
+
+```{r}
+wilcox.test(dengue1$edad,dengue0$edad, paired = FALSE, conf.int = TRUE)
+```
+
+Con un p-valor menor a 0.05 se rechaza la hipótesis nula, por lo que hay una diferencia estadísticamente significativa entre la edad del grupo que no presentó hiponatremia y del que sí presentó hiponatremia. La diferencia entre las edades de los dos grupos es de 13 años, siendo mayores las del grupo 1, con un intervalo de confianza del 95% entre 6 y 20 años.
+
+
+
+```{r fig.height= 3, fig.width=6}
+bplt <- ggplot(dengue, aes(x=hiponatremia ,y=edad)) +
+geom_boxplot()
+bplt
+```
+
+Mediante el boxplot podemos ver que efectivamente la edades de los individuos del grupo de hiponatremia son mayores a las de grupo que no presentó hiponatremia, ya que el boxplot del grupo 1 se encuentra más arriba que el del grupo 0.
+
+## Urea
+
+**Test de Wilcoxon**
+
+Las hipótesis del test de Wilcoxon son:
+
+* $H_0$: $\theta_{1} - \theta_{0} = 0$
+
+* $H_1$: $\theta_{1} - \theta_{0} \neq 0$,
+
+donde $\theta_{1}$ y $\theta_{0}$ son las medianas de la urea del grupo 1 (hiponatremia) y del grupo 0 (normonatremia), respectivamente.
+
+```{r}
+wilcox.test(dengue1$urea,dengue0$urea, paired = FALSE, conf.int = TRUE)
+```
+
+El p-valor dio menor a 0.05, por lo que se rechaza la hipótesis nula del test de Wilcoxon: las medianas de la urea para el grupo con hiponatremia y el grupo con normonatremia son significativamente diferentes. La urea del grupo 0 es 0.06997629 (g/L) menor que la del grupo 1, con un intervalo de confianza del 95% que va de 0.02993336 (g/L) a 0.10995324 (g/L).
+
+```{r fig.height= 3, fig.width=6}
+bplt <- ggplot(dengue, aes(x=hiponatremia ,y=urea)) +
+geom_boxplot()
+bplt
+```
+
+Con el boxplot podemos ver que los valores de urea del grupo 0 son menores a los del grupo 1.
+
+## Creatinina
+
+**Test de Wilcoxon**
+
+Las hipótesis del test de Wilcoxon son:
+
+* $H_0$: $\theta_{1} - \theta_{0} = 0$
+
+* $H_1$: $\theta_{1} - \theta_{0} \neq 0$,
+
+donde $\theta_{1}$ y $\theta_{0}$ son las medianas de la creatinina plasmática del grupo 1 (hiponatremia) y del grupo 0 (normonatremia), respectivamente.
+
+```{r}
+wilcox.test(dengue1$creatinina,dengue0$creatinina, paired = FALSE, conf.int = TRUE)
+```
+La creatinina no es significativamente diferente entre ambos grupos, ya que el test de Wilcoxon dio un p-valor mayor a 0.05, por lo que no se rechaza la hipótesis nula de que las medianas son iguales. Por lo tanto, no hay una asociación estadísticamente significativa entre el nivel de creatinina y la hiponatremia en individuos con el virus del dengue.
+
+```{r fig.height=3, fig.width=6, message=FALSE, warning=FALSE}
+bplt <- ggplot(dengue, aes(x=hiponatremia ,y=creatinina)) +
+geom_boxplot()
+bplt
+```
+
+Si bien el grupo 0 presenta un valor que se aleja mucho de todos los demás, se puede ver que los grupos tienen valores de creatinina similares.
+
+## Cloro
+
+**Test de Wilcoxon**
+
+Las hipótesis del test de Wilcoxon son:
+
+* $H_0$: $\theta_{1} - \theta_{0} = 0$
+
+* $H_1$: $\theta_{1} - \theta_{0} \neq 0$,
+
+donde $\theta_{1}$ y $\theta_{0}$ son las medianas del cloro plasmático del grupo 1 (hiponatremia) y del grupo 0 (normonatremia), respectivamente.
+
+```{r}
+wilcox.test(dengue1$cloro,dengue0$cloro, paired = FALSE, conf.int = TRUE)
+```
+
+El test de Wilcoxon dio un p-valor menor a 0.05, por lo que se rechaza la hipótesis nula. Entonces, hay una diferencia significativa entre la mediana del cloro plasmático del grupo sin hiponatremia y la mediana del grupo con hiponatremia. Por lo tanto, existe una asociación estadísticamente significativa entre el cloro plasmático y la hiponatremia. En el grupo con normonatremia el nivel de cloro plasmático es 2.900066 (mEq/L) mayor que el nivel del cloro del grupo con hiponatremia, con un intervalo de confianza al 95% entre 2.000046 (mEq/L) y 3.900039 (mEq/L).
+
+
+```{r fig.height= 3, fig.width=6}
+bplt <- ggplot(dengue, aes(x=hiponatremia ,y=cloro)) +
+geom_boxplot()
+bplt
+```
+
+En el boxplot se puede ver que el grupo 0 tiene niveles de cloro plasmático mayores que los del grupo con hiponatremia.
+
+## Potasio
+
+**Test de Wilcoxon**
+
+Las hipótesis del test de Wilcoxon son:
+
+* $H_0$: $\theta_{1} - \theta_{0} = 0$
+
+* $H_1$: $\theta_{1} - \theta_{0} \neq 0$,
+
+donde $\theta_{1}$ y $\theta_{0}$ son las medianas del potasio plasmático del grupo 1 (hiponatremia) y del grupo 0 (normonatremia), respectivamente.
+
+```{r}
+wilcox.test(dengue1$potasio,dengue0$potasio, paired = FALSE, conf.int = TRUE)
+```
+No se rechaza la hipótesis nula del test de Wilcoxon ya que el p-valor dio mayor a 0.05. Entonces, el potasio plasmático no presenta diferencias significativas entre el grupo sin hiponatremia y el grupo con hiponatremia. Por lo tanto, no hay una asociación estadísticamente significativa entre el potasio y la hiponatremia en individuos infectados con el virus del dengue.
+
+```{r fig.height= 3, fig.width=6}
+bplt <- ggplot(dengue, aes(x=hiponatremia ,y=potasio)) +
+geom_boxplot()
+bplt
+```
+
+En el gráfico de los boxplot se puede ver que para ambos grupos los valores de potasio son similares.
+
+## Hiperglucemia
+
+**Test exacto de Fisher**
+
+Las hipótesis del test exact de Fisher son:
+
+$H_0$: la hiperglucemia y la hiponatremia son variables independientes
+
+$H_1$: la hiperglucemia y la hiponatremia no son variables independientes.
+
+```{r}
+fisher.test(t_hglucemia)
+```
+
+El test arrojó un p-valor mayor a 0.05, por lo que no se rechaza la hipótesis nula. Por lo tanto, la hiperglucemia y el desarrollo de hiponatremia en individuos infectados con el virus del dengue son variables indepedientes, es decir, que no hay una asociación significativa entre ellas.
+
+```{r fig.height= 4, fig.width=6}
+mosaicplot(t_hglucemia, main = 'Hiperglucemia vs Hiponatremia', xlab = 'Hiperglucemia'
+           , ylab = 'Hiponatremia', color = c('grey', 'salmon'))
+```
+
+El gráfico de mosaicos muestra que el grupo con hiperglucemia presenta una mayor proporción de individuos con hiponatremia, aunque la diferencia dio no significativa. También se puede ver que el grupo sin hiperglucemia tiene una cantidad mucho mayor de individuos que el grupo con hiperglucemia.
+
+## Resumen de los análisis univariados
+
+```{r}
+tabla_1 <- data.frame(Variable = c('Edad (mediana)', 'Hombre', 'Potasio (mediana)',
+                    'Cloro (mediana)','Urea (mediana)','Creatinina (mediana)',
+                                   'Hiperglucemia'),
+                    Normonatremia = c('37 años (RI: 21 años)','50.49% (101)',
+                    '3.9 mEq/L (RI: 0.5 mEq/L)', '99.60 mEq/L (RI: 3.60 mEq/L)',
+                    '0.22 g/L (RI: 0.11 g/L)', '0.8 mg/dl (RI: 0.2 mg/dl)',
+                                      '1.98% (101)'),
+                    Hiponatremia = c('48 años (RI: 36 años)','51.02% (49)',
+                    '4.0 mEq/L (RI: 0.5 mEq/L)','96.90 mEq/L (RI: 2.80 mEq/L)',
+                    '0.30 g/L (RI: 0.17 g/L)','0.90 mg/dl (RI: 0.4 mg/dl)',
+                             '6.12% (49)'),
+                    P_valor = c('6.318e-05','1','0.5693','7.041e-09','0.0006667',
+                                '0.05757','0.3306'))
+kable(tabla_1, booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+
+6. **¿Para el análisis multivariado qué tipo de modelo utilizaría?**
+
+Para el análisis multivariado utilizaría un modelo de resgresión logística ya que la variable respuesta es dicotómica. Se busca ajustar un modelo para estimar la probabilidad de ocurrencia del evento, que en este caso es la hiponatremia en individuos infectados por el virus del dengue, según la presencia o no o el nivel de factores que influyen en la ocurrencia del evento.
+
+Los supuestos del modelo de regresión logística son:
+
+* la variable respuesta es dicotómica. Este supuesto se cumple ya que la variable respuesta es 1 si el individuo presenta hiponatremia y 0 si no la presenta.
+
+* las observaciones son independientes. Este supuesto se cumple ya que cada una de las observaciones corresponde a un paciente distinto.
+
+* linealidad de logit(p). Se supone que $logit(p) = \beta_0 + \beta_1\cdot x_1  + \beta_2 \cdot x_2 + ... +\beta_n \cdot x_n$
+
+7. **¿Qué variables agregaría al modelo para un primer análisis? Plantee el modelo teórico. Corra el modelo e interprete lo resultados.**
+
+En un primer análisis agregaría todas las variables al modelo ya que, si bien en el análisis anterior algunas asociaciones dieron no signficativas, al incluir varias variables puede verse modificada esta asociación por un efecto de confusión o efecto modificador. A partir de la significatividad de los coeficientes de cada variable puede luego decidirse qué variables conservar y cuáles no.
+
+El modelo teórico es:
+
+$\text{logit}(p_{maligno}) = \beta_0 + \beta_{edad}\cdot\text{edad} +\beta_{BR2}\cdot\text{BR2} + \beta_{BR3}\cdot\text{BR3} + \beta_{BR4}\cdot\text{BR4} +\beta_{BR5}\cdot\text{BR5} + $ 
+$ +\beta_{F1}\cdot\text{F1} + \beta_{F2}\cdot\text{F2} + \beta_{F3}\cdot\text{F3} + \beta_{F4}\cdot\text{F4} + \beta_{C1}\cdot\text{C1} + \beta_{C2}\cdot\text{C2}+ \beta_{C3}\cdot\text{C3} +  \beta_{C4}\cdot\text{C4} + \beta_{C5}\cdot\text{C5}+ $ + \beta_{potasio}\cdot\text{potasio} + \beta_{hiperglucemia}\cdot\text{hiperglucemia}$
+
+
+```{r include = FALSE}
+library(gtools)
+```
+
+Para poder realizar el modelo con todos los datos, reemplazo el dato faltante de la variable creatinina por la mediana de esta variable. Luego, corro el modelo.
+
+```{r}
+mediana = median(na.omit(dengue$creatinina))
+dengue$creatinina <- na.replace(dengue$creatinina,mediana)
+m1 <- glm(hiponatremia ~ genero + edad + urea + creatinina + cloro + potasio + 
+            hiperglucemia, data = dengue, family = "binomial")
+summary(m1)
+```
+
+A partir de los p-valores de los coeficientes estimados para cada variable podemos ver que las variables que resultan significativas para el modelo son la urea y el cloro, ya que sus p-valores son menores a 0.05. En cambio, el género, la edad, la creatinina, el potasio y la hiperglucemia no dieron significativas para el modelo ya que sus p-valores son mayores a 0.05. Esto significa que no se rechaza la hipótesis nula del test de Wald que dice que los coeficientes son iguales a cero. En el caso de la creatinina, si bien el p-valor es mayor a 0.05, está en el límite. Si comparamos con los análisis univariados, en general se mantuvieron las significancias de las variables, con la excepción de la edad que sí había dado una asociacón significativa con el evento. Esto se puede deber a un efecto confusor que puede haber con alguna otra variable.
+
+### Significancia del modelo
+
+El test omnibus evalúa la hipótesis nula de que los coeficientes de todas las variables incluidas en el modelo son iguales a cero.
+ 
+```{r}
+dengue$hiponatremia<-as.numeric(dengue$hiponatremia)
+omnibus<- aov(m1, data = dengue)
+summary(omnibus)
+```
+El test omnibus nos permite ver si todos los coeficientes del modelo, excepto el de Intersección, son significativamente distintos de 0. La hipótesis nula del modelo plantea que los coeficientes del modelo son iguales a 0. La alternativa, en cambio, dice que alguno de los coeficientes es distinto de 0.
+
+Por lo tanto, como para los coeficientes de la \texttt{edad}, la \texttt{urea} y el \texttt{cloro} los p-valores son menores a 0.05, estos coeficientes son significativamente diferentes de 0. Entonces, se rechaza a hipótesis nula y el modelo es significativo. 
+
+
+### Bondad de ajuste
+
+Evalúo la bondad del ajuste del modelo mediante el test de Hosmer-Lemenshow, que compara las frecuencias esperadas con las observadas. Dado que un modelo brinda un buen ajuste cuando las frecuencias esperadas y las observadas son muy similares, y que la hipótesis nula del test plantea que estas frecuencias son iguales, entonces un modelo dará un buen ajuste cuando no se rechace la $H_0$.
+
+```{r include = FALSE}
+library(generalhoslem)
+library(ResourceSelection)
+library(lmtest)
+```
+```{r}
+hl1 <- hoslem.test(m1$y, m1$fitted.values)
+hl1
+```
+El modelo brinda un buen ajuste ya que el p-valor es mayor a 0.05, y entonces no se rechaza la hipótesis nula que dice que las frecuencias observadas son iguales a las esperadas.
+
+
+8. **Del modelo planteado en la pregunta 7 ¿Qué variables conservaría? Corra el modelo e interprete lo resultados. ¿Cómo lo compararía con el modelo anterior?**
+
+Dado que las únicas variables que dieron significativas para el modelo fueron el cloro y la urea, conservaría solamente estas dos.
+
+El modelo teórico es:
+
+$\text{logit}(p_{hiponatremia}) = \beta_0 + \beta_{urea}\cdot\text{urea} + \beta_{cloro}\cdot\text{cloro}$
+
+Genero el nuevo modelo.
+
+
+```{r}
+dengue$hiponatremia <- as.factor(dengue$hiponatremia)
+m2 <- glm(hiponatremia ~ urea + cloro , data = dengue, family = "binomial")
+summary(m2)
+```
+
+Con el nuevo modelo, se puede ver que las significancias de ambos coeficientes se mantuvieron, ya que los dos p-valores dieron menores a 0.05.
+
+### Significancia del modelo
+
+Realizo el test omnibus para el nuevo modelo.
+
+```{r}
+dengue$hiponatremia<-as.numeric(dengue$hiponatremia)
+omnibus<- aov(m2, data = dengue)
+summary(omnibus)
+```
+Podemos ver que todos los coeficientes del modelo son significativamente diferentes de 0, ya que sus p-valores son menores a 0.05. Se rechaza la hipótesis nula del test omnibus que dice que todos los coeficientes del modelo son iguales a 0, por lo que el modelo es significativo.
+
+### Bondad de ajuste
+
+Evalúo la bondad del ajuste del modelo mediante el test de Hosmer-Lemenshow.
+
+```{r}
+hl2 <- hoslem.test(m2$y, m2$fitted.values)
+hl2
+```
+
+Este modelo de regresión logística brinda un buen ajuste, ya que el p-valor del test dio mayor a 0.05, por lo que no se rechaza la hipótesis nula que dice que las frecuencias esperadas y observadas son iguales.
+
+### Comparación entre los modelos
+
+#### Deviance.
+
+La *deviance* es una medida de confiabilidad del modelo que habla de la desviación del modelo ajustado con respecto al modelo perfecto, o saturado. Cuanto menor sea esta desviación, mejor explicará el modelo el comportamiento de la variable respuesta. Por ende, si comparamos la *deviance* de los dos modelos generados, el que menor *deviance* tenga será el que mejor ajuste tenga.
+
+Modelo 1
+
+```{r}
+m1$deviance
+```
+Modelo 2
+
+```{r}
+m2$deviance
+```
+
+Podemos ver que el modelo que solo incluye las variables \texttt{urea} y \texttt{cloro} tiene una *deviance* mayor que el modelo que utiliza a todas las variables. Por esta razón, el modelo que tiene mayor capacidad para explicar el comportamiento de la variable respuesta es el que tiene a todas las variables explicativas, es decir, el modelo 1.
+
+#### Curva ROC y Área bajo la curva.
+
+También podemos comparar la performance de los modelos mediante la curva ROC, que grafica la sensibilidad del modelo vs. la especificidad. Dado que el modelo de regresión logística devuelve una probabilidad de ocurrencia del evento, se puede generar una función que defina la ocurrencia o no del evento según:
+
+\begin{equation*}
+    Y = 
+         \begin{cases}
+      1, & \text{if}\ \ p >= u \\
+      0, & \text{if}\ \ p < u,\\
+      
+    \end{cases}
+\end{equation*}
+
+donde $p$ es la probabilidad obtenida del modelo y $u$ es un umbral de probabilidad a partir del cual se considera que el evento ocurre. De esta forma, se va variando el umbral desde 0 hasta 1 y para cada caso se calcula la sensibilidad y la especificidad del modelo. Luego, estos puntos se grafican en la llamada curva ROC. Cuanto más por encima de la recta de no dicriminación se encuentre la curva, mejor será el modelo. Esto también se puede medir con el área bajo la curva, ya que esta será mayor cuanto más por encima esté la curva de la recta de no discriminación.
+
+```{r include = FALSE}
+library(pROC)
+```
+
+
+```{r message=FALSE, warning=FALSE, fig.height= 4, fig.width=6}
+#modelo con todas las variables
+prob=predict(m1,type=c("response"))
+dengue$prob1 = prob
+roc1 <- roc(hiponatremia ~ prob1, data = dengue)
+
+#modelo con urea y cloro
+prob=predict(m2,type=c("response"))
+dengue$prob2 = prob
+roc2 <- roc(hiponatremia ~ prob2, data = dengue)
+
+plot(roc1, col = 'blue')
+plot(roc2, add=TRUE, col='red')
+```
+
+* Azul: modelo con todas las variables
+
+* Rojo: modelo con dos variables.
+
+```{r}
+#modelo 1
+roc1$auc
+```
+```{r}
+#modelo 2
+roc2$auc
+```
+
+Con el gráfico de las curvas ROC podemos ver que ambas curvas son bastante similares, aunque la curva azul, correspondiente al modelo que incluye a todas las variables parece alejarse un poco más de la curva de no discriminación. Esto se puede ver mejor con el AUC, que dio un poco mayor en el caso del modelo 1, aunque tampoco se observa una diferencia muy significativa.
+
+Esta comparación también indica que el modelo que mejor se ajusta a los datos es el modelo que tiene a todas las variables explicativas.
+
+9. **Resuma los datos del análisis multivariado en una tabla y elabore una conclusión.**
+
+### Resumen del modelo con todas las variables
+
+Calculo los OR de todas las variables y sus intervalos de confianza.
+
+```{r message=FALSE, warning=FALSE}
+OR1<-exp(coefficients(m1))
+IC1<- confint(m1)
+c<-exp(IC1)
+OR_IC_1<- cbind (OR1, c)
+OR_IC_1
+```
+
+
+```{r}
+tabla_2 <- data.frame(Variable = c('Género', 'Edad', 'Urea','Creatinina','Cloro',
+                                   'Potasio', 'Hiperglucemia'),
+                    OR = c('0.5172274','1.012979', '4629.620', '0.2799056',
+                                      '0.6303235','1.014646','2.024767'),
+                    IC_inf = c('0.1924325','0.9858550', '49.64074',
+                              '0.04002313','0.5078305','0.3429473','0.07734262'),
+                    IC_sup = c('1.332166', '1.041201', '788639.6','0.6940406',
+                               '0.7569227', '2.838558','64.79183'),
+                    P_valor = c('0.178505','0.351292','0.000468','0.054533',
+                                '4.93e-06','0.978293','0.693874'))
+kable(tabla_2, booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+Del modelo con todas las variables explicativas podemos sacar las siguientes conclusiones:
+
+* Por cada 1 mEq/L de cloro que se aumenta en el nivel plasmático de cloro, disminuyen en 0.63 veces las chances de padecer hiponatremia en una persona infectada por el virus del dengue, con un intervalo de confianza del 95% entre 0.51 y 0.76. Esta asociación resultó estadísticamente significativa, con un p-valor menor a 0.05.
+
+* Por cada aumento de 1 g/L en el nivel de urea, aumentan en 4629.62 veces las chances de padecer hiponatremia en una persona infectada por el virus del dengue, con un intervalo de confianza del 95% entre 49.64 y 788639.60. Dicha asociación resulta estadísticamente significativa, con un p-valor menor a 0.05.
+
+* Las variables edad, género, creatinina, potasio e hiperglucemia no resultaron tener una asociación estadísticamente significativa con la hiponatremia en persona infectadas por el virus del dengue.
+
+### Resumen del modelo con dos variables explicativas
+
+Calculo los OR de las dos variables incluidas y sus intervalos de confianza.
+
+```{r message=FALSE, warning=FALSE}
+OR2<-exp(coefficients(m2))
+IC2<- confint(m2)
+c<-exp(IC2)
+OR_IC_2<- cbind (OR2, c)
+OR_IC_2
+```
+
+```{r}
+tabla_3 <- data.frame(Variable = c('Urea', 'Cloro'),
+                    OR = c('235.4249','0.6829408'),
+                    IC_inf = c('10.39552','0.5693643'),
+                    IC_sup = c('6992.910', '0.7970399'),
+                    P_valor = c('0.000877','7.34e-06'))
+kable(tabla_3, booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+
+Del modelo que solo tiene en cuenta al cloro y a la urea podemos sacar las siguientes conclusiones:
+
+* Por cada 1 mEq/L de cloro que se aumenta en el nivel plasmático de cloro, disminuyen en 0.68 veces las chances de padecer hiponatremia en una persona infectada por el virus del dengue, con un intervalo de confianza del 95% entre 0.57 y 0.80. Esta asociación resultó estadísticamente significativa, con un p-valor menor a 0.05.
+
+
+* Por cada aumento de 1 g/L en el nivel de urea, aumentan en 235.42 veces las chances de padecer hiponatremia en una persona infectada por el virus del dengue, con un intervalo de confianza del 95% entre 10.40 y 6992.91. Dicha asociación resulta estadísticamente significativa, con un p-valor menor a 0.05.
+
+* El OR de la urea varía significativamente entre el modelo 1 y el modelo 2. Esto se debe a que existe una variable que actúa como modificador de efecto.
+
+
+
