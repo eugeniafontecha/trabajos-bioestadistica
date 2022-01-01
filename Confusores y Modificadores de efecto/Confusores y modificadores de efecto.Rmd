@@ -1,0 +1,290 @@
+---
+title: "Trabajo Práctico 5 - Confusores y modificadores de efecto"
+author: "María Eugenia Fontecha"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+path = 'C:/Users/meuge/Documents/R/TP5'
+```
+
+**La base de datos *death.csv* corresponde a un estudio donde los casos fueron recién nacidos que fallecieron por injurias. Los controles eran recién nacidos de edad similar. Las variables de la base de datos son las siguientes:** 
+
+* **byear: año de nacimiento**
+
+* **injflag: 1: muerte, 0: vivo**
+
+* **pnclate: 1: cuidado perinatal en las primeras 48hs del nacimiento, 0: sin cuidado en las primeras 48 hs**
+
+* **YoungW: 1: madres adolescentes, 0: madres mayores de edad.**
+
+```{r}
+setwd(path)
+death = read.csv('death.csv')
+summary(death)
+```
+Reemplazo con 0 y 1 los datos para que queden como en el enunciado y paso a factor las variables dicotómicas.
+
+```{r}
+injflag <- death$injflag
+death$injflag[injflag == 'No'] <- 0
+death$injflag[injflag == 'Yes'] <- 1
+death$injflag <- as.factor(death$injflag)
+str(death$injflag)
+```
+```{r}
+pnclate <- death$pnclate
+death$pnclate[pnclate == 'No'] <- 0
+death$pnclate[pnclate == 'Yes'] <- 1
+death$pnclate <- as.factor(death$pnclate)
+str(death$pnclate)
+```
+
+```{r}
+YoungMo <- death$YoungMo
+death$YoungMo[YoungMo == 'No'] <- 0
+death$YoungMo[YoungMo == 'Yes'] <- 1
+death$YoungMo <- as.factor(death$YoungMo)
+str(death$YoungMo)
+```
+
+1. **Obtenga el OR sin ajustar (crudo) y luego el OR de Mantel-Haenszel de madres adolescentes vs. madres mayores para muerte, ajustado por año de nacimiento, ya que las tecnologías de cuidado neonatal mejoraron con los años, y en años más recientes podría haber habido una reducción de la mortalidad.**
+
+```{r include = FALSE}
+library(knitr)
+library(magrittr)
+library(kableExtra) #para hacer tablas facheras
+library(questionr) #creo que para el odds.ratio
+library(DescTools) #test de homogeneidad
+```
+
+Genero la tabla de contingencia de madres adolescentes.
+
+```{r }
+tabla_youngmo <- table(death$YoungMo, death$injflag)
+tabla_youngmo = tabla_youngmo[rev(order(rownames(tabla_youngmo))) , 
+                              rev(order(colnames(tabla_youngmo)))]
+kable(tabla_youngmo, booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+Realizo el test de Chi Cuadrado para ver si hay una asociación entre el factor de exposición madre adolescente y el evento muerte del recién nacido.
+
+```{r}
+#Test de Chi Cuadrado, con corrección de continuidad (porque la tabla es de 2x2)
+chi_youngmo <- chisq.test(tabla_youngmo)
+chi_youngmo
+```
+Hay una asociación estadísticamente significativa entre la variable madre adolescente y la muerte del recién nacido, según el test de Chi Cuadrado, ya que el p-valor es menor a 0.05.
+
+Calculo el OR crudo.
+
+```{r}
+OR_YoungMo <- odds.ratio(tabla_youngmo, level = 0.95)
+kable(OR_YoungMo, booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+
+#p-valor
+print(OR_YoungMo$p)
+```
+A partir del OR crudo, se concluiría que el ser madre adolescente es un factor de riesgo para la muerte del recién nacido por injurias, aumentando el riesgo del evento 2.26 veces, con un intervalo de confianza del 95% entre 1.87 y 2.72. 
+
+
+Agrupo por año de nacimiento.
+
+```{r}
+t_ym_year <- as.data.frame(table(death$YoungMo, death$byear, death$injflag))
+colnames(t_ym_year)=c("young_mo","year","injflag","f") 
+kable(t_ym_year, booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+Genero la tabla de contingencia para cada año.
+
+```{r}
+t_estrato<-(xtabs(f~young_mo+injflag+year, data=t_ym_year))
+
+```
+
+Calculo el OR por estrato.
+
+```{r}
+odds <- apply(t_estrato,3,odds.ratio)
+```
+
+
+### 1986
+```{r}
+kable(odds[['1986']], booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+### 1987
+```{r}
+kable(odds[['1987']], booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+### 1988
+```{r}
+kable(odds[['1988']], booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+### 1989
+```{r}
+kable(odds[['1989']], booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+### 1990
+```{r}
+kable(odds[['1990']], booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+### 1991
+```{r}
+kable(odds[['1991']], booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+### 1992
+```{r}
+kable(odds[['1992']], booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+### 1993
+```{r}
+kable(odds[['1993']], booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+### 1994
+```{r}
+kable(odds[['1994']], booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+### 1995
+```{r}
+kable(odds[['1995']], booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+## Análisis de Homogeneidad
+
+Verifico si los OR entre los diferentes estratos son constantes. Las hipótesis del test de homogeneidad son:
+
+* $H_0$: los OR son homogéneos
+* $H_1$: los OR no son homogéneos.
+
+Si no rechazo la hipótesis nula, entonces el año de nacimiento podría ser un factor confusor y luego tengo que hacer el cálculo del OR ajustado, calcular la diferencia porcentual entre este y el OR global crudo y realizar el test de asociación. Si rechazo la hipótesis nula, entonces el año de nacimiento es un modificador de efecto y tengo que reportar el OR por estrato.
+
+```{r}
+BreslowDayTest(x = t_estrato)
+```
+El test de homogeneidad dio un p-valor mayor a 0.05, por lo que no se rechaza la hipótesis nula. No hay diferencia estadísticamente significativa entre los OR de los distintos estratos.
+
+### Odds ratio global y test de Mantel-Haenszel
+
+Calculo el OR global ajustado y realizo el test para ver si hay una asociación significativa entre el ser madre adolescente y la muerte por injurias del recién nacido, cuando se ajusta por año de nacimiento. El test de Mantel-Haenszel verifica si ajustando por el factor confusor, sigue habiendo una asocación significativa entre el factor de exposición y el evento. Las hipótesis son:
+
+* $H_0$: $OR = 1$
+* $H_1$: $OR \neq 1$.
+
+```{r}
+mantel <- mantelhaen.test(t_estrato)
+mantel
+```
+Calculo la diferencia porcentual entre el OR ajustado y el OR crudo. Veo si hay una diferencia mayor al 10% entre el OR crudo y el OR ajustado por año de nacimiento.
+
+```{r}
+(mantel$estimate - OR_YoungMo$OR)/OR_YoungMo$OR
+```
+
+
+2. **¿Es razonable obtener un único OR entre los estratos? Justifique. ¿Cómo reportaría los resultados?**
+
+
+Considero que es razonable obtener un OR único entre los estratos ya que realizando el test de homogeneidad se obtuvo que no hay diferencia estadísticamente significativa entre ellos, por lo que no sería necesario reportar un OR para cada uno. Supongo que los resultados que obtuve son razonables ya que, si bien pudo haber habido un avance tecnológico que haya implicado una mejora en los cuidados perinatales, en el análisis realizado no se tiene en cuenta qué grupo recibió estos cuidados y cuál no, sino que solamente se está separando en madres adolescentes y madres mayores en cada año.  
+
+El OR ajustado por año de nacimiento dio 2.279771, y al compararlo con el OR crudo, de 2.256658, se puede ver que la diferencia entre ellos es menor al 10% (cercana al 1%), por lo tanto el año de nacimiento no es un factor confusor. Por esta razón, reportaría como resultados el OR crudo y su correspondiente intervalo de confianza, como se muestra a continuación.
+
+Hay una asociación estadísticamente significativa entre ser madre adolescente y la muerte por injurias del recién nacido, siendo la primera variable un factor de riesgo. El ser madre adolescente aumenta en un 125% las chances de que el recién nacido muera por injurias, con un intervalo de confianza al 95% entre 87% y 172%.
+
+
+
+3. **Obtenga lo mismo que se pide en 1. y 2. pero ahora ajustando por cuidado perinatal. Interprete los resultados. ¿Qué reportaría en este nuevo análisis?**
+
+Agrupo por madre adolescente o mayor y cuidado perinatal.
+
+```{r}
+t_ym_peri <- as.data.frame(table(death$YoungMo, death$pnclate, death$injflag))
+colnames(t_ym_peri)=c("young_mo","cuidado_perinatal","injflag","f") 
+kable(t_ym_peri, booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+Genero tablas de contingencia.
+
+```{r}
+t2_estrato<-(xtabs(f~young_mo+injflag+cuidado_perinatal, data=t_ym_peri))
+```
+
+Calculo el OR por estrato.
+
+```{r}
+odds2 <- apply(t2_estrato,3,odds.ratio)
+```
+
+### Sin cuidados perinatales
+
+```{r}
+kable(odds2[['0']], booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+### Con cuidados perinatales
+
+```{r}
+kable(odds2[['1']], booktabs = T) %>%
+  kable_styling(latex_options = "striped")
+```
+
+## Test de homogeneidad
+
+Realizo el test de homogeneidad para ver si los OR por estrato son homogéneos.
+
+```{r}
+BreslowDayTest(x = t2_estrato)
+```
+
+Con un p-valor mayor a 0.05 no se rechaza la hipótesis nula, por lo que los OR por estrato son homogéneos. Esto indica que la variable cuidados perinatales no es un modificador de efecto.
+
+## OR ajustado por cuidados perinatales
+
+Calculo el OR global, ajustado por cuidados perinatales, y realizo el test de Mantel-Haenszel.
+
+
+```{r}
+mantel <- mantelhaen.test(t2_estrato)
+mantel
+```
+Diferencia poorcentual entre el OR crudo y el ajustado por cuidados perinatales.
+
+```{r}
+(OR_YoungMo$OR - mantel$estimate)/OR_YoungMo$OR
+```
+Como la diferencia entre el OR crudo y el OR ajustado es de casi 8%, es decir menor al 10%, la variable cuidados perinatales no es un factor confusor.
+
+Como conclusión, al calcular el OR de madres adolescentes agrupando según cuidados perinatales obtuve que los OR por estrato eran homogéneos, por lo tanto esta variable no es un modificador de efecto y no es necesario reportar resultados por estrato. Además, al calcular el OR global, ajustado por cuidados perinatales, la diferencia entre este y el OR crudo fue menor al 10%, por lo que esta variable no es un factor confusor. Entonces me quedo con los datos crudos.
+
+Por lo tanto, hay una asociación estadísticamente significativa entre la muerte por injurias de recién nacidos y que las madres sean adolescentes, siendo el riesgo de muerte 2.26 veces mayor que en el caso de que las madres sean mayores, con un intervalo de confianza al 95% entre 1.87 y 2.72.
+
+
+Tanto para el caso del año de nacimiento como para los cudados perinatales, no tuve en cuenta los resultados del test de Mantel-Haenszel ya que según los análisis que hice, ninguna se considera un factor confusor en la asociación entre madre adolescente y muerte del recién nacido. Si este hubiese sido el caso, igualmente habría una asociación estadísticamente significativa entre ser madre adolescente y la muerte por injurias del recién nacido ajustando por año de nacimiento ya que el test de Mantel-Haenszel dio un p-valor menor a 0.05, y también habría una asociación estadísticamente significativa entre ser madre adolescente y la muerte por injurias del recién nacido ajustando por cuidados perinatales porque el test tuvo un p-valor menor a 0.05. 
