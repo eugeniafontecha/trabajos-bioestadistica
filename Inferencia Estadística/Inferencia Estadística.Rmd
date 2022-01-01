@@ -1,0 +1,243 @@
+---
+title: "Trabajo Práctico 3 - Inferencia Estadística"
+author: María Eugenia Fontecha
+output: pdf_document
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Parte 1: Variables continuas
+
+Se plantean 4 problemas en los cuales debe analizar tanto por métodos gráfico como analíticos cuál es el método de análisis más apropiado y justificar su respuesta. A continuación, debe realizar el test seleccionado, describir su hipótesis nula y alternativa, y sacar conclusiones sobre el resultado.
+
+
+```{r include=FALSE}
+path = 'C:/Users/meuge/Documents/R/TP3'
+```
+
+```{r}
+setwd(path)
+```
+
+
+1. **En una clínica pediátrica se llevó a cabo un estudio para ver la efectividad de la aspirina en la reducción de la temperatura. Se consideraron 12 niños de 5 años que sufrían gripe y se midió su temperatura antes y 1 hora después de tomar aspirina. Los datos se presentan en el archivo *aspirina.csv* **
+
+```{r}
+aspirina <- read.csv2('aspirina.csv')
+summary(aspirina)
+```
+
+Se tienen dos muestras apareadas ya que se recogieron datos de temperatura de 12 niños antes y después de tomar aspirina. Se trata de un estudio longitudinal y nos interesa estudiar la diferencia *d* entre las dos muestras.
+
+Genero una variable *d* que será la diferencia entre *Antes* y *Después* y analizo si tiene distribución normal.
+```{r include = FALSE}
+library(ggplot2)
+library(nortest)
+library(ggpubr)
+
+```
+
+```{r fig.width=4, fig.height=4}
+aspirina$d = aspirina$Antes - aspirina$Desp.
+print(shapiro.test(aspirina$d))
+ggqqplot(aspirina$d, main = paste("Q-Q Plot"))
+
+```
+
+Para el test de Shapiro-Wilk obtuve un p-valor mayor a 0.05, por lo que no se rechaza la hipótesis nula que dice que la variable presenta distribución normal, y además el Q-Q Plot muestra también una distribución normal.
+
+### Test T de Student
+
+Como tenemos 12 individuos, es decir menos de 30, se debe utilizar el test T.
+
+Planteo las hipótesis del test, siendo $\mu$ la media de *d*:
+
+* $H_0$: $\mu = 0$
+
+* $H_1$: $\mu > 0$
+
+Como se trata de un test a una cola, voy a rechazar la hipótesis nula si el P-valor es menor a 0.025.
+
+```{r}
+t.test(aspirina$d, mu = 0, alternative = 'greater')
+
+```
+
+Se comprueba que la aspirina tiene un efecto de reducción de la temperatura en 0.9666667 °C en niños de 5 años con gripe, con un intervalo de confianza del 95% entre 0.7123697 e infinito, es decir que en el 95% de la población, el descenso de la temperatura será de al menos 0,71234697 °C. Este descenso resultó estadísticamente significativo (P-Valor menor a 0.025).
+
+
+2. **Se realizó un estudio con 10 pacientes que padecen insuficiencia renal provocada por diabetes y fueron tratados con captopril durante un periodo de 8 semanas. La proteína urinaria fue medida antes y después de aplicar la droga. Los datos se encuentran en el archivo *proteína.csv*.**
+
+```{r}
+proteina <- read.csv2('proteina.csv')
+summary(proteina)
+```
+Se trata de un estudio longitudinal, donde se midió la proteína urinaria antes y después de aplicar la droga, por lo que las muestras están apareadas. Calculo la diferencia de ambas muestras.
+
+```{r}
+proteina$d <- proteina$antes - proteina$despues
+```
+
+Analizo normalidad de la nueva variable.
+
+```{r fig.height=4, fig.width=4}
+print(shapiro.test(proteina$d))
+hist(proteina$d, main = 'Histograma')
+
+```
+
+Con el test de Shapiro-Wilk se obtiene un P-Valor menor a 0.05, por lo que se rechaza la hipótesis nula y se concluye que la variable *d* no presenta distribución normal. También se ve en el método gráfico que el histograma no presenta la forma de campana característica de una distribución normal. Por lo tanto, la variable *d* no es normal.
+
+### Test de Wilcoxon
+
+Dado que la variable bajo estudio no presenta distribución normal, utilizo el Test de Wilcoxon. Siendo $\theta$ la mediana, las hipótesis del test son:
+
+* $H_0$: $\theta_{antes} - \theta_{desp} = 0$
+
+* $H_1$: $\theta_{antes} - \theta_{desp} \neq 0$
+
+```{r}
+wilcox.test(proteina$antes,proteina$despues, paired = TRUE, conf.int = TRUE)
+```
+
+Se comprueba que el captopril tiene un efecto sobre la concentración de la proteína urinaria, produciendo la disminución de dicha concentración con una mediana de 4.35 mg/ml y un intervalo de confianza al 95% de 1.05 a 10.60. Es decir, que en el 95% de la población de pacientes con insuficiencia renal provocada por diabetes, el captopril producirá una disminución de entre 1.05 y 10.60 mg/ml en la concentración de proteína en orina.
+
+3.  **El codo de tenista afecta a los jugadores de tenis frecuentemente. Se condujo un estudio comparando la efectividad del ibuprofeno por 3 semanas y el placebo. La mitad de los participantes recibió un placebo. Se midió el grado de dolor en una escala del 1-6. Los datos se encuentran en el archivo *dolor.csv*.**
+
+```{r}
+dolor <- read.csv2('dolor.csv')
+summary(dolor)
+```
+
+La variable Grupo indica si al individuo se le administró el placebo o el ibuprofeno, por lo que es una variable categórica. Modifico el tipo de variable a *factor*. Además, elimino los registros que tengan grado de dolor fuera de la escala del 1-6.
+
+```{r fig.width=4, fig.height=4}
+dolor$Grupo <- as.factor(dolor$Grupo)
+
+dolor <- dolor[dolor$Grado.de.dolor >= 1 & dolor$Grado.de.dolor <= 6,]
+summary(dolor)
+
+plt <- ggplot(dolor, aes(x=Grupo ,y=Grado.de.dolor)) +
+geom_boxplot()
+plt
+
+
+```
+
+A partir del boxplot voy a suponer que el Grupo 1 es el grupo al que se le administró un placebo y el Grupo 2 es el grupo al que se le administró el ibuprofeno, ya que no se especifica.
+
+Analizo normalidad para ambos grupos.
+
+```{r fig.width=4, fig.height=4}
+dolor1 = dolor$Grado.de.dolor[dolor$Grupo == 1]
+
+lillie.test(dolor1)
+
+ggqqplot(dolor1)
+```
+```{r}
+dolor2 = dolor$Grado.de.dolor[dolor$Grupo == 2]
+
+lillie.test(dolor2)
+
+ggqqplot(dolor2)
+
+```
+Para los dos grupos se puede concluir que la variable Grado de dolor no tiene distribución normal. En los gráficos de QQ Plot se puede ver que hay datos que se alejan de la recta de normalidad y además los tests de Lilliefors arrojaron un P-Valor menor a 0.05.
+
+### Test de Wilcoxon-Mann-Whitney
+
+Las hipótesis del test son:
+
+* $H_0$: $\theta_{placebo} - \theta_{ibu} = 0$
+* $H_1$: $\theta_{placebo} - \theta_{ibu} \neq 0$
+
+```{r}
+wilcox.test(dolor1, dolor2, paired = FALSE, exact = FALSE)
+
+print('placebo')
+summary(dolor1)
+
+print('ibuprofeno')
+
+summary(dolor2)
+```
+
+El ibuprofeno tiene un efecto en el grado de dolor causado por el codo de tenista, con una mediana de 4 en la escala de dolor del grupo placebo y un rango intercuatílico de 2 y una mediana de 2 y un rango intercuartílico de 1 en el grupo al que se le suministró ibuprofeno. Por lo tanto, se concluye que el ibuprofeno disminuye el dolor causado por el codo de tenista. Los resultados tienen significancia estadísica ya que el P-Valor es menor a 0.05.
+
+
+4. **En algunos estudios se observó una asociación entre consumo de beta-caroteno y un decrecimiento en la incidencia de cáncer. En un ensayo clínico se compararon 2 preparados de beta-caroteno en cápsulas a fin de elevar los niveles plasmáticos de esta vitamina. Los sujetos fueron asignados en forma aleatoria a ambos grupos. Los datos se encuentran en *cancer.csv*.**
+
+```{r}
+cancer <- read.csv2('cancer.csv')
+summary(cancer)
+```
+
+Modifico la variable Preparado para que sea de tipo factor.
+
+```{r}
+cancer$Preparado = as.factor(cancer$Preparado)
+summary(cancer)
+```
+
+Analizo normalidad para cada grupo.
+
+```{r fig.width=4, fig.height=4}
+prep_1 <- cancer$Betacaroteno[cancer$Preparado == 1]
+
+shapiro.test(prep_1)
+ggqqplot(prep_1)
+```
+
+```{r fig.width=4, fig.height=4}
+prep_2 <- cancer$Betacaroteno[cancer$Preparado == 2]
+
+shapiro.test(prep_2)
+ggqqplot(prep_2)
+```
+
+Para ambos preparados se cumple que la variable Beta-Caroteno presenta distribución normal, como se pude verificar con el test de Shapiro, que dio P-Valores menores a 0.05, y con el QQ Plot donde todos los datos presentaban una tendencia normal.
+
+Analizo homocedasticidad para poder realizar el test T.
+
+```{r include=FALSE}
+library(car)
+```
+
+
+```{r}
+leveneTest(y = cancer$Betacaroteno, group = cancer$Preparado)
+```
+
+La hipótesis nula del test de Levene dice que las varianzas de los dos grupos son homogéneas y la hipótesis alternativa dice que las varianzas de los dos grupos son heterogéneas. Como se obtuvo un P-valor de 0.9384 se acepta la hipótesis nula, por lo que se cumple la condición de homocedasticidad del test T.
+
+
+### Test T para muestras independientes
+Como se cumple normalidad de las variables y homocedasticidad y dado que la cantidad de muestras es pequeña, se realiza el test T.
+
+Las hipótesis del test T son:
+
+* $H_0$: $\mu_{prep\_1} - \mu_{prep\_2} = 0$
+
+* $H_1$: $\mu_{prep\_1} - \mu_{prep\_2} \neq 0$.
+
+```{r include = FALSE}
+library(Rmisc)
+```
+
+
+```{r}
+t.test(prep_1, prep_2, paired = FALSE, int.conf =TRUE)
+
+print('preparado 1')
+CI(prep_1, ci = 0.95)
+
+print('preparado 2')
+CI(prep_2, ci = 0.95)
+```
+
+El nivel de beta-carotenos plasmático es diferente entre los dos tipos de preparados con alta significancia estadística (P-valor menor a 0.05), siendo mayor en el caso del preparado 2. El preparado 1 tiene una media de 229.667 con un intervalo de confianza al 95% de 170.4893 a 288.8441, mientras que el preparado 2 tiene una media del nivel de beta-carotenos de 402.000 y un intervalo de confianza al 95% de 340.8336 a 463.1664. Se observa que no existe solapamiento entre los intervalos de confianza del nivel de beta-carotenos de ambos grupos, lo que refuerza la conclusión sacada en cuanto a la diferencia de niveles de beta-carotenos que se generan con los distintos preparados.
+
